@@ -22,6 +22,8 @@ class HogFeature:
         return gradient_img
 
 
+
+
 hog = HogFeature("11.jpg")
 img = hog.gradient()
 print(type(img))
