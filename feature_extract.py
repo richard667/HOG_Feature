@@ -1,18 +1,20 @@
 import cv2
 import numpy as np
+import json
 import matplotlib.pylab as plt
+
 # image->window->block->cell->pixel
 class HogFeature:
-    def __init__(self, img_name, win_sizex, win_sizey, cell_size, block_size, block_stride, bin_num, grad_as_weight=False):
+    def __init__(self, img_name, win_w, win_h, cell_size, block_size, block_stride, bin_num=9, grad_as_weight=False):
         img = cv2.imread(img_name)
         self.img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        self.win_x = win_sizex
-        self.win_y = win_sizey
+        self.win_width = win_w
+        self.win_height = win_h
         self.cell_size = cell_size
         self.block_size = block_size
         self.block_stride = block_stride
         self.bin_num = bin_num
-        self.gradient, self.alpha = self.gradient(self.img)
+        # self.gradient, self.alpha = self._gradient()
         self.gradient_as_weight = grad_as_weight
 
     # 假设输入为黑白图像
@@ -55,19 +57,19 @@ class HogFeature:
                 bin_statis = self.cell_statistics(grad_cell.ravel(), alpha_cell.ravel())
                 block_feature += bin_statis.tolist()
         block_feature = np.array(block_feature)
-        norm_2 =  np.linalg.norm(block_feature)  # 向量二范数
+        norm_2 = np.linalg.norm(block_feature)  # 向量二范数
         block_feature = block_feature / norm_2
         return block_feature
 
-    def _window_process(self,grad_window, alpha_window):
+    def _window_process(self, grad_window, alpha_window):
         '''
         :param grad_window:
         :param alpha_window:
         :return: win_feature: HOG feature of a window,
-                num_h*num_w: number of HOG feature
+                num_h*num_w: length of HOG feature vector
         '''
-        num_h = self.win_y / self.block_size
-        num_w = self.win_x / self.block_size
+        num_h = self.win_height / self.block_size
+        num_w = self.win_width / self.block_size
         win_feature = []
         for i in range(num_h):
             for j in range(num_w):
@@ -77,9 +79,30 @@ class HogFeature:
                 win_feature += self._block_statistics(param_1, param_2).tolist()
         return win_feature, num_h*num_w
 
-    def _img_process(self, win_h, win_w):
+    def img_process(self):
+        '''
+        实际上训练数据只有一个窗口
+        :return:
+        '''
         img_h, img_w = self.img.shape
-        # 将图像划分为网格
+        h_iter = img_h - self.win_height + 1
+        w_iter = img_w - self.win_width + 1
+        gradient_img, alpha_img = self._gradient()
+        img_hog = []
+        for i in range(h_iter):
+            for j in range(w_iter):
+                gradient_window = gradient_img[i:self.win_height + i, j:j+self.win_width]
+                alpha_window = alpha_img[i:self.win_height + i, j:j+self.win_width]
+                win_feature, n = self._window_process(gradient_window, alpha_window)
+                img_hog.append(win_feature)
+        return img_hog
+                # cv2.imshow("window", gradient_window.astype(np.uint8))
+                # print(j)
+                # cv2.waitKey(1)
+        # cv2.imshow("img", gradient_img.astype(np.uint8))
+        # cv2.waitKey(0)
+        # with open("img.json", "w") as f:
+        #     json.dump(gradient_img.tolist(), f)
 
 
 
@@ -87,27 +110,12 @@ class HogFeature:
 
 
 
-
-
-
-
-img = cv2.imread("11.jpg")
-gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-gradientx, gradienty = gradient(gray_img)
-print(gradientx.shape)
-print(gradienty)
-cv2.imshow("h", gradienty)
-cv2.imshow("v", gradientx)
-cv2.waitKey(0)
-
-
-
-
-hog = HogFeature("11.jpg")
-img = hog.gradient()
-print(type(img))
-cv2.imshow("img", img)
-cv2.waitKey(0)
+# self, img_name, win_w, win_h, cell_size, block_size, block_stride, bin_num=9, grad_as_weight=False
+hog = HogFeature("12.jpg", 80, 80, 8, 16, 8)
+img = hog.img_process()
+# print(type(img))
+# cv2.imshow("img", img)
+# cv2.waitKey(0)
 
 
 # def single_channel_gradient(self, img):
